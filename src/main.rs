@@ -35,6 +35,7 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::new();
 
     let event_id = std::env::args().nth(2).expect("no event id provided");
+    let event_id = EventId::from_bech32(&event_id).unwrap();
 
     let keys = Keys::from_sk_str(&config.nsec).expect("invalid nsec key");
 
@@ -47,9 +48,7 @@ async fn main() -> anyhow::Result<()> {
     client.connect().await;
 
     // Get first event that matches the event id
-    let event_filter = Filter::new()
-        .id(EventId::from_bech32(&event_id).unwrap())
-        .limit(1);
+    let event_filter = Filter::new().id(event_id).limit(1);
 
     let timeout = Duration::from_secs(10);
 
@@ -120,7 +119,7 @@ async fn main() -> anyhow::Result<()> {
 
     let pubkey = XOnlyPublicKey::from_str(&nostr_pubkey).unwrap();
 
-    let e = Tag::Event(EventId::from_bech32(&event_id).unwrap(), None, None);
+    let e = Tag::Event(event_id, None, None);
     let p = Tag::PubKey(pubkey, None);
 
     // Iterate over vec of strings and convert to vec of urls, fail if any fail
@@ -174,20 +173,24 @@ async fn main() -> anyhow::Result<()> {
         Err(_) => panic!("could not connect"),
     };
 
+    // JUST IN CASE YOU WANT TO DEBUG YOUR LND CONNECTION
     // let info = lnd_client.get_info(GetInfoRequest {}).await?;
 
-    let send_response = lnd_client
+    let _ = lnd_client
         .send_payment_sync(SendRequest {
             payment_request: callback_response.pr,
             ..Default::default()
         })
         .await?;
 
-    dbg!(send_response);
+    // Find the zap events that the receiver ("zapper" as they're confusingly called) published
+    let zap_filter = Filter::new().kind(Kind::Zap).event(event_id).pubkey(pubkey);
 
-    // dbg!(info);
+    let zaps = client
+        .get_events_of(vec![zap_filter], Some(timeout))
+        .await?;
 
-    // dbg!(zap_request.as_json());
+    dbg!(zaps);
 
     Ok(())
 }
