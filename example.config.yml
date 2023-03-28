@@ -1,0 +1,6 @@
+nsec: "nsec..."
+node_grpc_host: "127.0.0.1:10001"
+node_macaroon_path: "/path/to/admin.macaroon"
+node_tls_path: "/path/to/tls.cert"
+relays: ["ws://localhost:5057"]
+amount_sats: 1000
